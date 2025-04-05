@@ -148,7 +148,7 @@ export const login = async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ email }).select('-password')
+    const user = await User.findOne({ email })
     if (!user) {
       return res.status(400).json({ success: false, message: 'User not found' })
     }
@@ -158,9 +158,8 @@ export const login = async (req, res) => {
         .status(400)
         .json({ success: false, message: 'User not verified' })
     }
-
-    const isPasswordValid = await User.comparePassword(password, user.password)
-
+    // console.log('123')
+    const isPasswordValid = await user.comparePassword(password)
     if (!isPasswordValid) {
       return res
         .status(400)
@@ -178,6 +177,8 @@ export const login = async (req, res) => {
       secure: true,
       maxAge: 24 * 60 * 60 * 1000,
     }
+
+    // const { password: _, ...userData } = user.toObject()
 
     res.cookie('token', token, cookieOptions)
 
