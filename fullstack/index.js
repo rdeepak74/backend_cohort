@@ -2,6 +2,7 @@ import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
 import db from './utils/db_connect.js'
+import cookieParser from 'cookie-parser'
 
 //import all routes
 import userRoutes from './routes/user.route.js'
@@ -19,6 +20,7 @@ app.use(
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(cookieParser())
 
 const port = process.env.PORT || 4000
 
@@ -38,7 +40,7 @@ app.get('deepak1', (req, res) => {
 db()
 
 //User routes
-app.use('/api/v1/user', userRoutes)
+app.use('/api/v1/users', userRoutes)
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
