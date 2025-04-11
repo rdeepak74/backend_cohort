@@ -2,6 +2,7 @@ import User from '../model/User.model.js'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
 import jwt from 'jsonwebtoken'
+import { sendMail } from '../utils/sendMail.utils.js'
 export const registerUser = async (req, res) => {
   //get data
   //validate
@@ -59,30 +60,43 @@ export const registerUser = async (req, res) => {
     await user.save()
 
     //send mail start
-    const transporter = nodemailer.createTransport({
-      host: process.env.MAILTRAP_HOST,
-      port: process.env.MAILTRAP_PORT,
-      secure: false, // true for port 465, false for other ports
-      auth: {
-        user: process.env.MAILTRAP_USERNAME,
-        pass: process.env.MAILTRAP_PASSWORD,
-      },
-    })
+    // const transporter = nodemailer.createTransport({
+    //   host: process.env.MAILTRAP_HOST,
+    //   port: process.env.MAILTRAP_PORT,
+    //   secure: false, // true for port 465, false for other ports
+    //   auth: {
+    //     user: process.env.MAILTRAP_USERNAME,
+    //     pass: process.env.MAILTRAP_PASSWORD,
+    //   },
+    // })
 
-    const mailOptions = {
-      from: process.env.MAILTRAP_SENDEREMAIL, // sender address
-      to: user.email, // list of receivers
-      subject: 'Verify your email', // Subject line
-      text: `Please click on the following link to verify your email: ${process.env.BASE_URL}/api/v1/users/verify/${token}`,
-      html: `Please click on the following link to verify your email: <a href="${process.env.BASE_URL}/api/v1/users/verify/${token}">Verify</a>`,
-    }
+    // const mailOptions = {
+    //   from: process.env.MAILTRAP_SENDEREMAIL, // sender address
+    //   to: user.email, // list of receivers
+    //   subject: 'Verify your email', // Subject line
+    //   text: `Please click on the following link to verify your email: ${process.env.BASE_URL}/api/v1/users/verify/${token}`,
+    //   html: `Please click on the following link to verify your email: <a href="${process.env.BASE_URL}/api/v1/users/verify/${token}">Verify</a>`,
+    // }
 
-    await transporter.sendMail(mailOptions)
+    // await transporter.sendMail(mailOptions)
     //send mail end
+
+    //Seprate file banaya hu start
+    const mailresponse = await sendMail(
+      user.email,
+      'Verify your emai1',
+      `Please click on the following link to verify your email: ${process.env.BASE_URL}/api/v1/users/verify/${token}`,
+      `Please click on the following link to verify your email: <a href="${process.env.BASE_URL}/api/v1/users/verify/${token}">Verify</a>`,
+      token
+    )
+    //end
 
     res.status(200).json({
       success: true,
-      message: 'User created successfully',
+      message: {
+        user: 'User crated successullly',
+        mailresponse,
+      },
     })
   } catch (error) {
     console.log(error)
@@ -255,12 +269,90 @@ export const logoutUser = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
-    const { token } = req.cookies
-  } catch (error) {}
+    //get email
+    // find user based on email
+    // reset token + reset expiry => Date.now() + 10 * 60 * 1000 => user.save()
+    // send mail => design url
+    const { email } = req.body
+    console.log(email)
+    const user = await User.findOne({ email })
+    console.log(user)
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User not present',
+      })
+    }
+
+    const resetPasswordToken = crypto.randomBytes(32).toString('hex')
+    const resetPasswordExpire = Date.now() + 20 * 60 * 1000
+
+    user.resetPasswordToken = resetPasswordToken
+    user.resetPasswordExpires = resetPasswordExpire
+    await user.save()
+
+    const mailSend = await sendMail(
+      user.email,
+      'Forgot Password',
+      `Please click on the following link to resset the password: ${process.env.BASE_URL}/api/v1/users/resetpassword/${resetPasswordToken}`,
+      `Please click on the following link to resset the password: <a href="${process.env.BASE_URL}/api/v1/users/resetpassword/${resetPasswordToken}">Reset password</a>`,
+      resetPasswordToken
+    )
+
+    res.status(200).json({
+      success: true,
+      message: {
+        forgotmessage: 'Forgot password link sent to your email',
+        mailSend,
+      },
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      success: false,
+      message: 'Forgot password error',
+    })
+  }
 }
 
-export const restPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   try {
-    const { token } = req.cookies
-  } catch (error) {}
+    const { resetPasswordToken } = req.params
+    const { password, confirmPassword } = req.body
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password and confirm password do not match',
+      })
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    })
+
+    if (!user) {
+      return res.status(500).json({
+        success: false,
+        message: 'User not found',
+      })
+    }
+
+    user.resetPasswordToken = undefined
+    user.resetPasswordExpires = new Date(0)
+    user.password = password
+
+    await user.save()
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully',
+    })
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      message: 'Password reset Error',
+    })
+  }
 }
