@@ -80,13 +80,13 @@ export const registerUser = async (req, res) => {
     await transporter.sendMail(mailOptions)
     //send mail end
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: 'User created successfully',
     })
   } catch (error) {
     console.log(error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'Something went wrong in registration',
     })
@@ -125,13 +125,13 @@ export const verifyUser = async (req, res) => {
     user.verificationToken = undefined
     await user.save()
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: 'User verified successfully',
     })
   } catch (error) {
     console.log(error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'Something went wrong in verification',
     })
@@ -182,7 +182,7 @@ export const login = async (req, res) => {
 
     res.cookie('token', token, cookieOptions)
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: 'User logged in successfully',
       user: {
@@ -195,9 +195,72 @@ export const login = async (req, res) => {
     })
   } catch (error) {
     console.log(error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'Something went wrong in login',
     })
   }
+}
+
+export const getMe = async (req, res) => {
+  try {
+    // const data = req.user
+    // console.log('reached profile me')
+    const user = await User.findById(req.user.id).select('-password')
+    console.log(user)
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User not found' })
+    }
+    return res.status(200).json({
+      success: true,
+      message: 'successfully profile get',
+      user,
+    })
+
+    // res.status(200).json({
+    //   success: true,
+    //   message: 'User logged in successfully',
+    //   user: {
+    //     id: user._id,
+    //     name: user.name,
+    //     email: user.email,
+    //     role: user.role,
+    //   },
+    //   token,
+    // })
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error in fetching user profile',
+    })
+  }
+}
+
+export const logoutUser = async (req, res) => {
+  try {
+    res.cookie('token', '', {
+      expries: new Date(0),
+    })
+    res.status(200).json({
+      success: true,
+      message: 'successfully logout',
+    })
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      message: 'Error in logout',
+    })
+  }
+}
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { token } = req.cookies
+  } catch (error) {}
+}
+
+export const restPassword = async (req, res) => {
+  try {
+    const { token } = req.cookies
+  } catch (error) {}
 }
